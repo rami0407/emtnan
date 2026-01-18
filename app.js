@@ -283,11 +283,26 @@ async function rejectMessage(id) {
 }
 
 function toggleAdmin() {
-    isAdmin = !isAdmin;
-    document.body.classList.toggle('admin-mode');
-    const headerTitle = document.querySelector('.header-title');
-    headerTitle.innerText = isAdmin ? "لوحة المدير (Admin)" : "صفحة الامتنان";
-    renderMessages();
+    if (!isAdmin) {
+        // Entering Admin Mode
+        const password = prompt("الرجاء إدخال كلمة المرور للمدير:");
+        if (password === "rami2244") {
+            isAdmin = true;
+            document.body.classList.add('admin-mode');
+            const headerTitle = document.querySelector('.header-title');
+            headerTitle.innerText = "لوحة المدير (Admin)";
+            renderMessages();
+        } else if (password !== null) { // Don't alert if user cancelled
+            alert("كلمة المرور خاطئة!");
+        }
+    } else {
+        // Exiting Admin Mode
+        isAdmin = false;
+        document.body.classList.remove('admin-mode');
+        const headerTitle = document.querySelector('.header-title');
+        headerTitle.innerText = "صفحة الامتنان";
+        renderMessages();
+    }
 }
 
 // --- Events ---
