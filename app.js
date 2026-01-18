@@ -1,7 +1,18 @@
-// --- Initialization ---
-const STORAGE_KEY = 'gratitude_messages';
-let notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-let currentUser = { name: 'Guest', role: 'student' }; // Mock user
+import { db } from './firebase-config.js';
+import {
+    collection,
+    addDoc,
+    onSnapshot,
+    doc,
+    updateDoc,
+    deleteDoc,
+    query,
+    orderBy,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// --- State ---
+let notes = [];
 let isAdmin = false;
 
 // Recording State
@@ -24,34 +35,49 @@ const recordStatus = document.getElementById('record-status');
 const audioPreviewContainer = document.getElementById('audio-preview-container');
 const audioPreview = document.getElementById('audio-preview');
 
+// --- Firebase Listeners ---
+
+// Listen to 'messages' collection ordered by timestamp
+const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+
+onSnapshot(q, (snapshot) => {
+    notes = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+    renderMessages();
+}, (error) => {
+    console.error("Error getting documents: ", error);
+});
 
 // --- Core Functions ---
-
-function saveNotes() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-    renderMessages();
-}
 
 function renderMessages() {
     chatArea.innerHTML = '';
     pinnedContainer.innerHTML = '';
 
-    // Sort logic
     const visibleNotes = isAdmin
         ? notes
         : notes.filter(n => n.status === 'approved');
 
-    // 1. Render Pinned Messages (Only approved ones typically, or all for admin)
+    // 1. Render Pinned Messages
     const pinnedNotes = visibleNotes.filter(n => n.isPinned);
     if (pinnedNotes.length > 0) {
         pinnedContainer.style.display = 'flex';
         pinnedNotes.forEach(note => {
             const pinDiv = document.createElement('div');
             pinDiv.className = 'pinned-message';
-            pinDiv.innerHTML = `<span>📌 <b>${note.sender}:</b> ${note.text ? note.text.substring(0, 30) + '...' : 'Voice Message'}</span> ${isAdmin ? `<span onclick="togglePin(${note.id})">❌</span>` : ''}`;
-            pinDiv.onclick = (e) => {
-                if (e.target.tagName !== 'SPAN') scrollToMessage(note.id);
-            };
+            pinDiv.innerHTML = `<span>📌 <b>${note.sender}:</b> ${note.text ? note.text.substring(0, 30) + '...' : 'Voice Message'}</span> ${isAdmin ? `<span class="unpin-btn" data-id="${note.id}">❌</span>` : ''}`;
+
+            // Event delegation handled manually to avoid inline onclick with modules
+            pinDiv.querySelector('span:first-child').onclick = () => scrollToMessage(note.id);
+            if (isAdmin) {
+                pinDiv.querySelector('.unpin-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    togglePin(note.id, note.isPinned);
+                };
+            }
+
             pinnedContainer.appendChild(pinDiv);
         });
     } else {
@@ -68,41 +94,8 @@ function renderMessages() {
         const tickColor = note.status === 'approved' ? '#53bdeb' : '#999';
         const ticks = `<svg viewBox="0 0 16 15" width="16" height="15" style="fill:${tickColor}"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.585l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>`;
 
-        // Reactions
-        let reactionsHtml = '';
-        if (note.likes > 0 || (note.reactions && note.reactions.length > 0)) {
-            reactionsHtml = `
-            <div class="reactions-bar">
-                <div class="reaction-count" onclick="likeMessage(${note.id})">
-                    ${(note.reactions || []).join('')} ❤️ ${note.likes}
-                </div>
-            </div>`;
-        } else {
-            reactionsHtml = `
-            <div class="reactions-bar" style="border:none; padding:0;">
-                <button onclick="likeMessage(${note.id})" style="background:none; border:none; color:#ccc; font-size:12px; cursor:pointer;">❤️ Like</button>
-            </div>`;
-        }
-
-        // Admin Controls
-        let adminControls = '';
-        if (isAdmin) {
-            adminControls = `
-            <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; display:flex; gap:5px;">
-                ${note.status === 'pending' ?
-                    `<button onclick="approveMessage(${note.id})" style="background:#d9fdd3;border:1px solid green;">✅</button>
-                     <button onclick="rejectMessage(${note.id})" style="background:#fdd3d3;border:1px solid red;">❌</button>`
-                    : ''}
-                <button onclick="togglePin(${note.id})" style="background:${note.isPinned ? '#ffd700' : '#eee'}; border:1px solid #ccc;">
-                    ${note.isPinned ? 'Unpin' : '📌 Pin'}
-                </button>
-            </div>
-            `;
-        }
-
-        // Content (Text + Audio)
+        // Content
         let contentHtml = '';
-        if (note.heading) contentHtml += `<div style="font-weight:bold; color:var(--whatsapp-teal)">${note.heading}</div>`; // fallback
         if (note.audioData) {
             contentHtml += `<audio controls src="${note.audioData}" class="audio-player"></audio>`;
         }
@@ -114,16 +107,45 @@ function renderMessages() {
             <div class="message-sender">
                 <span>${note.sender} ➝ ${note.receiver}</span>
             </div>
-            <div class="message-text">
-                ${contentHtml}
-            </div>
+            <div class="message-text">${contentHtml}</div>
             <div class="message-meta">
-                <span class="timestamp">${note.timestamp}</span>
+                <span class="timestamp">${note.formattedTime || 'Now'}</span>
                 ${ticks}
             </div>
-            ${reactionsHtml}
-            ${adminControls}
+            
+            <!-- Reactions -->
+            <div class="reactions-bar">
+                <div class="reaction-count" id="like-btn-${note.id}">
+                    ${(note.reactions || []).join('')} ❤️ ${note.likes || 0}
+                </div>
+            </div>
+
+            <!-- Admin Controls -->
+            ${isAdmin ? `
+            <div class="admin-controls" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; display:flex; gap:5px;">
+                ${note.status === 'pending' ?
+                    `<button class="approve-btn" style="background:#d9fdd3;border:1px solid green;">✅</button>
+                     <button class="reject-btn" style="background:#fdd3d3;border:1px solid red;">❌</button>`
+                    : ''}
+                <button class="pin-btn" style="background:${note.isPinned ? '#ffd700' : '#eee'}; border:1px solid #ccc;">
+                    ${note.isPinned ? 'Unpin' : '📌 Pin'}
+                </button>
+            </div>` : ''}
         `;
+
+        // Bind Events (Module safety)
+        bubble.querySelector(`#like-btn-${note.id}`).onclick = () => likeMessage(note.id, note.likes);
+
+        if (isAdmin) {
+            const approveBtn = bubble.querySelector('.approve-btn');
+            if (approveBtn) approveBtn.onclick = () => approveMessage(note.id);
+
+            const rejectBtn = bubble.querySelector('.reject-btn');
+            if (rejectBtn) rejectBtn.onclick = () => rejectMessage(note.id);
+
+            const pinBtn = bubble.querySelector('.pin-btn');
+            if (pinBtn) pinBtn.onclick = () => togglePin(note.id, note.isPinned);
+        }
 
         chatArea.appendChild(bubble);
     });
@@ -142,9 +164,8 @@ function scrollToMessage(id) {
 
 // --- Recording Logic ---
 
-async function toggleRecording() {
+window.toggleRecording = async function () {
     if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        // Start Recording
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -158,7 +179,6 @@ async function toggleRecording() {
                 const audioUrl = URL.createObjectURL(audioBlob);
                 audioPreview.src = audioUrl;
 
-                // Convert to Base64 for storage
                 const reader = new FileReader();
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = function () {
@@ -179,17 +199,16 @@ async function toggleRecording() {
             audioChunks = [];
 
         } catch (err) {
-            console.error("Error accessing mic:", err);
-            alert("لا يمكن الوصول للميكروفون. تأكد من السماح بالصلاحيات.");
+            console.error(err);
+            alert("لا يمكن الوصول للميكروفون.");
         }
     } else {
-        // Stop Recording
         mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop()); // Stop mic
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
 }
 
-function clearAudio() {
+window.clearAudio = function () {
     audioBlob = null;
     audioBase64 = null;
     audioPreview.src = '';
@@ -197,65 +216,71 @@ function clearAudio() {
     recordBtn.innerHTML = '<i class="fas fa-microphone"></i> تسجيل';
 }
 
-// --- Actions ---
+// --- Actions (Firebase) ---
 
-function openCompose() {
-    modal.style.display = 'flex';
-}
-
-function closeCompose() {
+window.openCompose = () => modal.style.display = 'flex';
+window.closeCompose = () => {
     modal.style.display = 'none';
     form.reset();
-    clearAudio();
-}
+    window.clearAudio();
+};
 
-function handleSubmit(e) {
+async function handleSubmit(e) {
     e.preventDefault();
-
-    // Allow empty text if audio is present
     const textVal = document.getElementById('message-text').value;
-    if (!textVal && !audioBase64) {
-        alert("يرجى كتابة رسالة أو تسجيل صوت.");
-        return;
-    }
+    if (!textVal && !audioBase64) return alert("يرجى كتابة رسالة أو تسجيل صوت.");
 
-    const newNote = {
-        id: Date.now(),
-        sender: document.getElementById('sender').value || "Anonymous",
-        receiver: document.getElementById('receiver').value,
-        text: textVal,
-        audioData: audioBase64,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: 'pending',
-        isPinned: false,
-        likes: 0,
-        reactions: []
-    };
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    notes.push(newNote);
-    saveNotes();
-    closeCompose();
-
-    alert("تم الإرسال للمدير للمراجعة! 🚀");
-}
-
-function likeMessage(id) {
-    const note = notes.find(n => n.id === id);
-    if (note) {
-        note.likes++;
-        saveNotes();
+    try {
+        await addDoc(collection(db, "messages"), {
+            sender: document.getElementById('sender').value || "Anonymous",
+            receiver: document.getElementById('receiver').value,
+            text: textVal,
+            audioData: audioBase64, // Storing base64 directly in firestore for simplicity (limit < 1MB)
+            timestamp: serverTimestamp(), // Server time for sorting
+            formattedTime: formattedTime, // Display time
+            status: 'pending',
+            isPinned: false,
+            likes: 0,
+            reactions: []
+        });
+        window.closeCompose();
+        alert("تم الإرسال للمدير للمراجعة! 🚀");
+    } catch (e) {
+        console.error("Error adding document: ", e);
+        alert("حدث خطأ أثناء الإرسال");
     }
 }
 
-function togglePin(id) {
-    const note = notes.find(n => n.id === id);
-    if (note) {
-        note.isPinned = !note.isPinned;
-        saveNotes();
-    }
+async function likeMessage(id, currentLikes) {
+    const msgRef = doc(db, "messages", id);
+    await updateDoc(msgRef, {
+        likes: (currentLikes || 0) + 1
+    });
+}
+
+async function togglePin(id, currentStatus) {
+    const msgRef = doc(db, "messages", id);
+    await updateDoc(msgRef, {
+        isPinned: !currentStatus
+    });
 }
 
 // --- Admin Actions ---
+
+async function approveMessage(id) {
+    const msgRef = doc(db, "messages", id);
+    await updateDoc(msgRef, {
+        status: 'approved'
+    });
+}
+
+async function rejectMessage(id) {
+    const msgRef = doc(db, "messages", id);
+    await deleteDoc(msgRef);
+}
 
 function toggleAdmin() {
     isAdmin = !isAdmin;
@@ -265,32 +290,10 @@ function toggleAdmin() {
     renderMessages();
 }
 
-function approveMessage(id) {
-    const note = notes.find(n => n.id === id);
-    if (note) {
-        note.status = 'approved';
-        saveNotes();
-    }
-}
-
-function rejectMessage(id) {
-    notes = notes.filter(n => n.id !== id);
-    saveNotes();
-}
-
 // --- Events ---
-
 form.addEventListener('submit', handleSubmit);
 adminToggle.addEventListener('click', toggleAdmin);
 
-window.likeMessage = likeMessage;
-window.approveMessage = approveMessage;
-window.rejectMessage = rejectMessage;
-window.togglePin = togglePin;
-window.openCompose = openCompose;
-window.closeCompose = closeCompose; // Exposed for cancel btn
-window.toggleRecording = toggleRecording;
-window.clearAudio = clearAudio;
-
-// Init
-renderMessages();
+// Global Exposure for HTML onclicks
+// Note: With Modules, functions aren't global by default.
+// We effectively bound them above or attached to window where necessary.
