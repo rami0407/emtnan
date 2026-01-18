@@ -1,0 +1,362 @@
+:root {
+    --whatsapp-green: #00a884;
+    --whatsapp-dark-green: #008069;
+    --whatsapp-teal: #128C7E;
+    --chat-bg: #e5ddd5;
+    --message-out-bg: #d9fdd3;
+    --message-in-bg: #ffffff;
+    --text-primary: #111b21;
+    --text-secondary: #667781;
+    --app-bg: #d1d7db;
+    --white: #ffffff;
+    --shadow: 0 1px 0.5px rgba(11, 20, 26, .13);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--app-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    direction: rtl;
+    /* Arabic support */
+}
+
+/* App Container (Mobile view centered on desktop) */
+.app-container {
+    width: 100%;
+    max-width: 500px;
+    height: 100%;
+    max-height: 100vh;
+    background-color: var(--chat-bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+    /* Subtle WhatsApp pattern mock */
+    background-blend-mode: overlay;
+}
+
+/* Header */
+.app-header {
+    background-color: var(--whatsapp-dark-green);
+    color: var(--white);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.header-profile {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.header-profile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.header-info {
+    flex: 1;
+}
+
+.header-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.header-status {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.header-actions {
+    display: flex;
+    gap: 15px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+/* Chat Area */
+.chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.message-bubble {
+    max-width: 85%;
+    padding: 6px 7px 8px 9px;
+    border-radius: 7.5px;
+    box-shadow: var(--shadow);
+    position: relative;
+    font-size: 14.2px;
+    line-height: 19px;
+    color: var(--text-primary);
+}
+
+.message-bubble.approved {
+    background-color: var(--message-in-bg);
+    align-self: flex-start;
+    /* Messages from others */
+    border-top-right-radius: 0;
+}
+
+/* Admin view style for pending */
+.message-bubble.pending {
+    background-color: #fff5c4;
+    align-self: flex-start;
+    border: 1px dashed #ffa500;
+}
+
+.message-sender {
+    font-weight: bold;
+    color: var(--whatsapp-teal);
+    /* Randomize colors later? */
+    font-size: 13px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.message-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    margin-top: -5px;
+    /* Pull timestamp up slightly */
+    margin-left: -2px;
+}
+
+.timestamp {
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: fit-content;
+}
+
+.reactions-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.reaction-count {
+    background: #fff;
+    border-radius: 10px;
+    padding: 2px 5px;
+    font-size: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+}
+
+/* Input Area */
+.input-footer {
+    background-color: #f0f2f5;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+}
+
+.input-box {
+    flex: 1;
+    background-color: white;
+    border-radius: 20px;
+    padding: 12px 15px;
+    color: var(--text-secondary);
+    cursor: text;
+    user-select: none;
+}
+
+.send-btn {
+    background-color: var(--whatsapp-dark-green);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.modal-header {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--whatsapp-dark-green);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+input,
+select,
+textarea {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 100%;
+}
+
+.primary-btn {
+    background-color: var(--whatsapp-dark-green);
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.cancel-btn {
+    background: transparent;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Admin Toggle (Hidden) */
+#admin-toggle {
+    opacity: 0.1;
+    cursor: pointer;
+}
+
+/* Pinned Messages */
+.pinned-container {
+    background-color: #fff;
+    padding: 8px 12px;
+    z-index: 9;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.pinned-message {
+    background-color: #f0f0f0;
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    border-right: 3px solid var(--whatsapp-green);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Voice Recorder Controls */
+.mic-btn {
+    background-color: var(--whatsapp-dark-green);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.record-btn {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+}
+
+.record-btn.recording {
+    background: #ffecec;
+    color: red;
+    border-color: red;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.audio-player {
+    width: 100%;
+    margin-top: 5px;
+    height: 30px;
+}

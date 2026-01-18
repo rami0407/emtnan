@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحة الامتنان</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <button class="icon-btn"><i class="fas fa-arrow-right"></i></button>
+            <div class="header-profile">
+                <!-- Placeholder School Logo -->
+                <img src="https://ui-avatars.com/api/?name=School&background=0D8ABC&color=fff" alt="School">
+            </div>
+            <div class="header-info">
+                <div class="header-title">صفحة الامتنان</div>
+                <div class="header-status" id="msg-count">Online</div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn"><i class="fas fa-video"></i></button>
+                <button class="icon-btn"><i class="fas fa-phone"></i></button>
+                <button class="icon-btn" id="admin-toggle"><i class="fas fa-ellipsis-v"></i></button>
+            </div>
+        </header>
+
+        <!-- Pinned Messages Area -->
+        <div id="pinned-container" class="pinned-container" style="display:none;"></div>
+
+        <!-- Messages Area -->
+        <div class="chat-area" id="chat-area">
+            <!-- Messages injected by JS -->
+        </div>
+
+        <!-- Input Footer -->
+        <div class="input-footer">
+            <button class="icon-btn" style="color: #667781;"><i class="fas fa-plus"></i></button>
+            <div class="input-box" onclick="openCompose()">
+                اكتب رسالة شكر...
+            </div>
+            <div class="mic-btn" onclick="openCompose()">
+                <i class="fas fa-microphone"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compose Modal -->
+    <div class="modal-overlay" id="compose-modal">
+        <div class="modal-content">
+            <div class="modal-header">رسالة شكر جديدة 💐</div>
+            <form id="compose-form">
+                <div class="form-group">
+                    <label>من (اختياري)</label>
+                    <input type="text" id="sender" placeholder="اسمك (طالب/ولي أمر)">
+                </div>
+                <div class="form-group">
+                    <label>إلى</label>
+                    <input type="text" id="receiver" placeholder="اسم المعلم/ة أو الشخص المشكور" required>
+                </div>
+
+                <!-- Message Body -->
+                <div class="form-group">
+                    <label>الرسالة</label>
+                    <textarea id="message-text" rows="3" placeholder="اكتب كلماتك الجميلة هنا..."></textarea>
+                </div>
+
+                <!-- Voice Recorder -->
+                <div class="form-group">
+                    <label>أو سجل رسالة صوتية 🎤</label>
+                    <div class="recorder-controls">
+                        <button type="button" id="record-btn" class="record-btn" onclick="toggleRecording()">
+                            <i class="fas fa-microphone"></i> تسجيل
+                        </button>
+                        <span id="record-status" style="display:none; color:red; font-size:12px;">جاري التسجيل...
+                        </span>
+                        <div id="audio-preview-container" style="display:none; margin-top:5px;">
+                            <audio id="audio-preview" controls class="audio-player"></audio>
+                            <button type="button" onclick="clearAudio()"
+                                style="color:red; background:none; border:none; cursor:pointer;">❌ حذف</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                    <button type="button" class="cancel-btn" onclick="closeCompose()">إلغاء</button>
+                    <button type="submit" class="primary-btn">إرسال للمدير</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
