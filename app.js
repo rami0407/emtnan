@@ -124,9 +124,9 @@ function renderMessages() {
             ${isAdmin ? `
             <div class="admin-controls" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; display:flex; gap:5px;">
                 ${note.status === 'pending' ?
-                    `<button class="approve-btn" style="background:#d9fdd3;border:1px solid green;">✅</button>
-                     <button class="reject-btn" style="background:#fdd3d3;border:1px solid red;">❌</button>`
+                    `<button class="approve-btn" style="background:#d9fdd3;border:1px solid green;">✅</button>`
                     : ''}
+                <button class="reject-btn" style="background:#fdd3d3;border:1px solid red;">❌ حذف</button>
                 <button class="pin-btn" style="background:${note.isPinned ? '#ffd700' : '#eee'}; border:1px solid #ccc;">
                     ${note.isPinned ? 'Unpin' : '📌 Pin'}
                 </button>
