@@ -282,8 +282,9 @@ textarea {
 
 /* Admin Toggle (Hidden) */
 #admin-toggle {
-    opacity: 0.1;
+    opacity: 0.3;
     cursor: pointer;
+    z-index: 100;
 }
 
 /* Pinned Messages */

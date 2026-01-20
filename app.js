@@ -252,6 +252,35 @@ window.addReaction = async function (id, emoji) {
     });
 }
 
+async function handleSubmit(e) {
+    e.preventDefault();
+    const textVal = document.getElementById('message-text').value;
+    if (!textVal && !audioBase64) return alert("يرجى كتابة رسالة أو تسجيل صوت.");
+
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    try {
+        await addDoc(collection(db, "messages"), {
+            sender: document.getElementById('sender').value || "Anonymous",
+            receiver: document.getElementById('receiver').value,
+            text: textVal,
+            audioData: audioBase64,
+            timestamp: serverTimestamp(),
+            formattedTime: formattedTime,
+            status: 'pending',
+            isPinned: false,
+            likes: 0,
+            reactionCounts: {}
+        });
+        window.closeCompose();
+        alert("تم الإرسال للمدير للمراجعة! 🚀");
+    } catch (e) {
+        console.error("Error adding document: ", e);
+        alert("حدث خطأ أثناء الإرسال");
+    }
+}
+
 async function togglePin(id, currentStatus) {
     const msgRef = doc(db, "messages", id);
     await updateDoc(msgRef, {
@@ -274,10 +303,11 @@ async function rejectMessage(id) {
 }
 
 function toggleAdmin() {
+    console.log("Admin toggle clicked");
     if (!isAdmin) {
         // Entering Admin Mode
         const password = prompt("الرجاء إدخال كلمة المرور للمدير:");
-        if (password === "rami2244") {
+        if (password && password.trim() === "rami2244") {
             isAdmin = true;
             document.body.classList.add('admin-mode');
             const headerTitle = document.querySelector('.header-title');
