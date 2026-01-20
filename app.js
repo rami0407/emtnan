@@ -152,27 +152,13 @@ function renderMessages() {
         const isCurrentWeek = (parseInt(key) === currentWeekKey);
         const label = formatWeekRange(weekData.date);
 
-        // Container (Details or Div)
-        let container;
+        // Container (Direct chatArea for current week, Details for past)
         let listContainer;
 
-        if (isCurrentWeek || isAdmin) { // Admins always see expanded or standard view preferences? Let's keep current week expanded.
-            // For current week, just a header maybe, or no header like before? 
-            // User wants "New messages first". 
-            // Let's wrap standard messages in a div, maybe with a header "This Week"
-            const weekDiv = document.createElement('div');
-            weekDiv.className = 'week-group current-week';
-
-            const header = document.createElement('div');
-            header.className = 'week-header active-header';
-            header.innerText = isCurrentWeek ? "🌟 هذا الأسبوع" : label;
-            weekDiv.appendChild(header);
-
-            listContainer = document.createElement('div');
-            listContainer.className = 'week-messages';
-            weekDiv.appendChild(listContainer);
-
-            chatArea.appendChild(weekDiv);
+        if (isCurrentWeek) {
+            // Restoration: Render directly to chatArea, just like before.
+            // No wrapper, no header.
+            listContainer = chatArea;
         } else {
             // Past weeks -> Collapsible
             const details = document.createElement('details');
@@ -183,10 +169,11 @@ function renderMessages() {
             summary.innerText = `📂 أرشيف ${label}`;
             details.appendChild(summary);
 
-            listContainer = document.createElement('div');
-            listContainer.className = 'week-messages';
-            details.appendChild(listContainer);
+            const internalList = document.createElement('div');
+            internalList.className = 'week-messages';
+            details.appendChild(internalList);
 
+            listContainer = internalList;
             chatArea.appendChild(details);
         }
 
