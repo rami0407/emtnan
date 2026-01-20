@@ -222,6 +222,13 @@ window.addReaction = async function (id, emoji) {
     const picker = document.getElementById(`picker-${id}`);
     if (picker) picker.classList.add('hidden');
 
+    // Check LocalStorage
+    const reacted = JSON.parse(localStorage.getItem('reacted_messages') || '{}');
+    if (reacted[id]) {
+        alert("لقد قمت بالتفاعل مع هذه الرسالة مسبقاً! ❤️");
+        return;
+    }
+
     const msgRef = doc(db, "messages", id);
     const note = notes.find(n => n.id === id);
     if (!note) return;
@@ -235,6 +242,10 @@ window.addReaction = async function (id, emoji) {
     }
 
     currentCounts[emoji] = (currentCounts[emoji] || 0) + 1;
+
+    // Save to LocalStorage
+    reacted[id] = emoji;
+    localStorage.setItem('reacted_messages', JSON.stringify(reacted));
 
     await updateDoc(msgRef, {
         reactionCounts: currentCounts
