@@ -103,9 +103,10 @@ function renderMessages() {
 
     // 2. Render Normal Messages (Grouped by Week)
 
-    // Helper to get Sunday of the week
+    // Helper to get Sunday of the week (Normalized to midnight)
     const getWeekStart = (d) => {
         const date = new Date(d);
+        date.setHours(0, 0, 0, 0); // Normalize time
         const day = date.getDay(); // 0 (Sun) to 6 (Sat)
         const diff = date.getDate() - day; // subtract day to get Sunday
         return new Date(date.setDate(diff));
