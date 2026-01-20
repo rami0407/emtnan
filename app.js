@@ -62,6 +62,23 @@ function renderMessages() {
         ? notes
         : notes.filter(n => n.status === 'approved');
 
+    if (isAdmin) {
+        messageCountSpan.innerText = `${notes.filter(n => n.status === 'pending').length} Pending`;
+    } else {
+        messageCountSpan.innerText = "Online";
+    }
+
+    // Update Global Counter
+    const totalApproved = notes.filter(n => n.status === 'approved').length;
+    const counterEl = document.getElementById('global-counter');
+    if (counterEl) {
+        counterEl.innerHTML = `${totalApproved} 💌 رسالة امتنان`;
+        // Simple animation trigger
+        counterEl.classList.remove('pop');
+        void counterEl.offsetWidth; // trigger reflow
+        counterEl.classList.add('pop');
+    }
+
     // 1. Render Pinned Messages
     const pinnedNotes = visibleNotes.filter(n => n.isPinned);
     if (pinnedNotes.length > 0) {
