@@ -38,7 +38,7 @@ const audioPreview = document.getElementById('audio-preview');
 // --- Firebase Listeners ---
 
 // Listen to 'messages' collection ordered by timestamp
-const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+const q = query(collection(db, "messages"), orderBy("timestamp", "desc"));
 
 onSnapshot(q, (snapshot) => {
     notes = snapshot.docs.map(doc => ({
@@ -49,6 +49,8 @@ onSnapshot(q, (snapshot) => {
 }, (error) => {
     console.error("Error getting documents: ", error);
 });
+
+// --- Core Functions ---
 
 // --- Core Functions ---
 
@@ -69,7 +71,6 @@ function renderMessages() {
             pinDiv.className = 'pinned-message';
             pinDiv.innerHTML = `<span>📌 <b>${note.sender}:</b> ${note.text ? note.text.substring(0, 30) + '...' : 'Voice Message'}</span> ${isAdmin ? `<span class="unpin-btn" data-id="${note.id}">❌</span>` : ''}`;
 
-            // Event delegation handled manually to avoid inline onclick with modules
             pinDiv.querySelector('span:first-child').onclick = () => scrollToMessage(note.id);
             if (isAdmin) {
                 pinDiv.querySelector('.unpin-btn').onclick = (e) => {
@@ -77,7 +78,6 @@ function renderMessages() {
                     togglePin(note.id, note.isPinned);
                 };
             }
-
             pinnedContainer.appendChild(pinDiv);
         });
     } else {
@@ -103,6 +103,21 @@ function renderMessages() {
             contentHtml += `<div>${note.text}</div>`;
         }
 
+        // Reactions Logic
+        let reactionChips = '';
+        const counts = note.reactionCounts || {};
+
+        // Migration: If old likes exist but no new reactions, display them as Hearts
+        if ((note.likes > 0) && (!counts['❤️'])) {
+            counts['❤️'] = note.likes;
+        }
+
+        Object.keys(counts).forEach(emoji => {
+            if (counts[emoji] > 0) {
+                reactionChips += `<span class="reaction-pill">${emoji} ${counts[emoji]}</span>`;
+            }
+        });
+
         bubble.innerHTML = `
             <div class="message-sender">
                 <span>${note.sender} ➝ ${note.receiver}</span>
@@ -113,10 +128,26 @@ function renderMessages() {
                 ${ticks}
             </div>
             
-            <!-- Reactions -->
+            <!-- Reactions UI -->
             <div class="reactions-bar">
-                <div class="reaction-count" id="like-btn-${note.id}">
-                    ${(note.reactions || []).join('')} ❤️ ${note.likes || 0}
+                <div class="reaction-tally">
+                    ${reactionChips}
+                </div>
+                
+                <div class="reaction-wrapper">
+                    <button class="reaction-trigger" id="react-trigger-${note.id}">
+                        <i class="far fa-smile"></i>
+                    </button>
+                    <!-- Picker -->
+                    <div id="picker-${note.id}" class="reaction-picker hidden">
+                        <div class="reaction-emojis">
+                            <button class="emoji-btn" data-id="${note.id}" data-emoji="❤️">❤️</button>
+                            <button class="emoji-btn" data-id="${note.id}" data-emoji="👍">👍</button>
+                            <button class="emoji-btn" data-id="${note.id}" data-emoji="🤩">🤩</button>
+                            <button class="emoji-btn" data-id="${note.id}" data-emoji="😂">😂</button>
+                            <button class="emoji-btn" data-id="${note.id}" data-emoji="🙏">🙏</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -134,7 +165,14 @@ function renderMessages() {
         `;
 
         // Bind Events (Module safety)
-        bubble.querySelector(`#like-btn-${note.id}`).onclick = () => likeMessage(note.id, note.likes);
+        const trigger = bubble.querySelector(`#react-trigger-${note.id}`);
+        if (trigger) trigger.onclick = () => togglePicker(note.id);
+
+        // Picker buttons
+        const emojiBtns = bubble.querySelectorAll('.emoji-btn');
+        emojiBtns.forEach(btn => {
+            btn.onclick = () => addReaction(btn.dataset.id, btn.dataset.emoji);
+        });
 
         if (isAdmin) {
             const approveBtn = bubble.querySelector('.approve-btn');
@@ -162,102 +200,44 @@ function scrollToMessage(id) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-// --- Recording Logic ---
+// --- Reaction Functions ---
 
-window.toggleRecording = async function () {
-    if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+window.togglePicker = function (id) {
+    const picker = document.getElementById(`picker-${id}`);
+    const allPickers = document.querySelectorAll('.reaction-picker');
+    allPickers.forEach(p => {
+        if (p !== picker) p.classList.add('hidden');
+    });
 
-            mediaRecorder.ondataavailable = e => {
-                audioChunks.push(e.data);
-            };
-
-            mediaRecorder.onstop = () => {
-                audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                audioPreview.src = audioUrl;
-
-                const reader = new FileReader();
-                reader.readAsDataURL(audioBlob);
-                reader.onloadend = function () {
-                    audioBase64 = reader.result;
-                }
-
-                audioPreviewContainer.style.display = 'block';
-                recordStatus.style.display = 'none';
-                recordBtn.classList.remove('recording');
-                recordBtn.innerHTML = '<i class="fas fa-microphone"></i> إعادة';
-                audioChunks = [];
-            };
-
-            mediaRecorder.start();
-            recordBtn.classList.add('recording');
-            recordStatus.style.display = 'inline';
-            recordBtn.innerHTML = '<i class="fas fa-stop"></i> إيقاف';
-            audioChunks = [];
-
-        } catch (err) {
-            console.error(err);
-            alert("لا يمكن الوصول للميكروفون.");
-        }
+    // Toggle logic simple
+    if (picker.classList.contains('hidden')) {
+        picker.classList.remove('hidden');
     } else {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        picker.classList.add('hidden');
     }
 }
 
-window.clearAudio = function () {
-    audioBlob = null;
-    audioBase64 = null;
-    audioPreview.src = '';
-    audioPreviewContainer.style.display = 'none';
-    recordBtn.innerHTML = '<i class="fas fa-microphone"></i> تسجيل';
-}
+window.addReaction = async function (id, emoji) {
+    // Hide picker immediately
+    const picker = document.getElementById(`picker-${id}`);
+    if (picker) picker.classList.add('hidden');
 
-// --- Actions (Firebase) ---
-
-window.openCompose = () => modal.style.display = 'flex';
-window.closeCompose = () => {
-    modal.style.display = 'none';
-    form.reset();
-    window.clearAudio();
-};
-
-async function handleSubmit(e) {
-    e.preventDefault();
-    const textVal = document.getElementById('message-text').value;
-    if (!textVal && !audioBase64) return alert("يرجى كتابة رسالة أو تسجيل صوت.");
-
-    const now = new Date();
-    const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    try {
-        await addDoc(collection(db, "messages"), {
-            sender: document.getElementById('sender').value || "Anonymous",
-            receiver: document.getElementById('receiver').value,
-            text: textVal,
-            audioData: audioBase64, // Storing base64 directly in firestore for simplicity (limit < 1MB)
-            timestamp: serverTimestamp(), // Server time for sorting
-            formattedTime: formattedTime, // Display time
-            status: 'pending',
-            isPinned: false,
-            likes: 0,
-            reactions: []
-        });
-        window.closeCompose();
-        alert("تم الإرسال للمدير للمراجعة! 🚀");
-    } catch (e) {
-        console.error("Error adding document: ", e);
-        alert("حدث خطأ أثناء الإرسال");
-    }
-}
-
-async function likeMessage(id, currentLikes) {
     const msgRef = doc(db, "messages", id);
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+
+    // Safety check for undefined legacy fields
+    const currentCounts = note.reactionCounts || {};
+
+    // Migration fallback (only once per load really, but safe here)
+    if (emoji === '❤️' && !currentCounts['❤️'] && note.likes > 0) {
+        currentCounts['❤️'] = note.likes;
+    }
+
+    currentCounts[emoji] = (currentCounts[emoji] || 0) + 1;
+
     await updateDoc(msgRef, {
-        likes: (currentLikes || 0) + 1
+        reactionCounts: currentCounts
     });
 }
 
