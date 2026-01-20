@@ -424,3 +424,69 @@ adminToggle.addEventListener('click', toggleAdmin);
 // Global Exposure for HTML onclicks
 // Note: With Modules, functions aren't global by default.
 // We effectively bound them above or attached to window where necessary.
+// --- Global UI Helpers (for HTML onclicks) ---
+
+window.openCompose = function () {
+    document.getElementById('compose-modal').style.display = 'flex';
+}
+
+window.closeCompose = function () {
+    const modal = document.getElementById('compose-modal');
+    const form = document.getElementById('compose-form');
+    modal.style.display = 'none';
+    form.reset();
+    clearAudio(); // Reset audio state
+}
+
+// Voice Recording Logic
+window.toggleRecording = async function () {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        // Start Recording
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                document.getElementById('audio-preview').src = audioUrl;
+                document.getElementById('audio-preview-container').style.display = 'flex';
+
+                // Convert to Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    audioBase64 = reader.result;
+                }
+            };
+
+            mediaRecorder.start();
+            document.getElementById('record-btn').innerHTML = '<i class="fas fa-stop"></i> إيقاف';
+            document.getElementById('record-btn').classList.add('recording');
+            document.getElementById('record-status').style.display = 'inline';
+
+        } catch (err) {
+            console.error("Error accessing microphone:", err);
+            alert("لا يمكن الوصول للميكروفون");
+        }
+    } else {
+        // Stop Recording
+        mediaRecorder.stop();
+        document.getElementById('record-btn').innerHTML = '<i class="fas fa-microphone"></i> تسجيل';
+        document.getElementById('record-btn').classList.remove('recording');
+        document.getElementById('record-status').style.display = 'none';
+    }
+}
+
+window.clearAudio = function () {
+    audioBlob = null;
+    audioBase64 = null;
+    audioChunks = [];
+    document.getElementById('audio-preview').src = '';
+    document.getElementById('audio-preview-container').style.display = 'none';
+}
