@@ -84,115 +84,201 @@ function renderMessages() {
         pinnedContainer.style.display = 'none';
     }
 
-    // 2. Render Normal Messages
+    // 2. Render Normal Messages (Grouped by Week)
+
+    // Helper to get Sunday of the week
+    const getWeekStart = (d) => {
+        const date = new Date(d);
+        const day = date.getDay(); // 0 (Sun) to 6 (Sat)
+        const diff = date.getDate() - day; // subtract day to get Sunday
+        return new Date(date.setDate(diff));
+    };
+
+    const formatDate = (d) => {
+        return `${d.getDate()}/${d.getMonth() + 1}`;
+    };
+
+    const formatWeekRange = (sundayDate) => {
+        const nextSat = new Date(sundayDate);
+        nextSat.setDate(sundayDate.getDate() + 6);
+        return `الأسبوع: ${formatDate(sundayDate)} - ${formatDate(nextSat)}`;
+    };
+
+    // Calculate Current Week Start (for comparison)
+    const today = new Date();
+    const currentWeekStart = getWeekStart(today);
+    const currentWeekKey = currentWeekStart.getTime(); // Use timestamp for easier comparison
+
+    // Group Messages
+    const grouped = {};
+
     visibleNotes.forEach(note => {
-        const bubble = document.createElement('div');
-        bubble.id = `msg-${note.id}`;
-        bubble.className = `message-bubble ${note.status}`;
-        if (note.status === 'pending') bubble.classList.add('pending');
+        // Timestamp handling: simplified for Firestore TS
+        const ts = note.timestamp ? note.timestamp.toDate() : new Date();
+        const weekStart = getWeekStart(ts);
+        const weekKey = weekStart.getTime();
 
-        const tickColor = note.status === 'approved' ? '#53bdeb' : '#999';
-        const ticks = `<svg viewBox="0 0 16 15" width="16" height="15" style="fill:${tickColor}"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.585l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>`;
-
-        // Content
-        let contentHtml = '';
-        if (note.audioData) {
-            contentHtml += `<audio controls src="${note.audioData}" class="audio-player"></audio>`;
+        if (!grouped[weekKey]) {
+            grouped[weekKey] = {
+                date: weekStart,
+                notes: []
+            };
         }
-        if (note.text) {
-            contentHtml += `<div>${note.text}</div>`;
+        grouped[weekKey].notes.push(note);
+    });
+
+    // Sort Weeks (Newest First)
+    const sortedWeekKeys = Object.keys(grouped).sort((a, b) => b - a);
+
+    sortedWeekKeys.forEach(key => {
+        const weekData = grouped[key];
+        const isCurrentWeek = (parseInt(key) === currentWeekKey);
+        const label = formatWeekRange(weekData.date);
+
+        // Container (Details or Div)
+        let container;
+        let listContainer;
+
+        if (isCurrentWeek || isAdmin) { // Admins always see expanded or standard view preferences? Let's keep current week expanded.
+            // For current week, just a header maybe, or no header like before? 
+            // User wants "New messages first". 
+            // Let's wrap standard messages in a div, maybe with a header "This Week"
+            const weekDiv = document.createElement('div');
+            weekDiv.className = 'week-group current-week';
+
+            const header = document.createElement('div');
+            header.className = 'week-header active-header';
+            header.innerText = isCurrentWeek ? "🌟 هذا الأسبوع" : label;
+            weekDiv.appendChild(header);
+
+            listContainer = document.createElement('div');
+            listContainer.className = 'week-messages';
+            weekDiv.appendChild(listContainer);
+
+            chatArea.appendChild(weekDiv);
+        } else {
+            // Past weeks -> Collapsible
+            const details = document.createElement('details');
+            details.className = 'week-group archived-week';
+
+            const summary = document.createElement('summary');
+            summary.className = 'week-header';
+            summary.innerText = `📂 أرشيف ${label}`;
+            details.appendChild(summary);
+
+            listContainer = document.createElement('div');
+            listContainer.className = 'week-messages';
+            details.appendChild(listContainer);
+
+            chatArea.appendChild(details);
         }
 
-        // Reactions Logic
-        let reactionChips = '';
-        const counts = note.reactionCounts || {};
+        // Render Messages in this Group
+        weekData.notes.forEach(note => {
+            const bubble = document.createElement('div');
+            bubble.id = `msg-${note.id}`;
+            bubble.className = `message-bubble ${note.status}`;
+            if (note.status === 'pending') bubble.classList.add('pending');
 
-        // Migration: If old likes exist but no new reactions, display them as Hearts
-        if ((note.likes > 0) && (!counts['❤️'])) {
-            counts['❤️'] = note.likes;
-        }
+            const tickColor = note.status === 'approved' ? '#53bdeb' : '#999';
+            const ticks = `<svg viewBox="0 0 16 15" width="16" height="15" style="fill:${tickColor}"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.585l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>`;
 
-        Object.keys(counts).forEach(emoji => {
-            if (counts[emoji] > 0) {
-                reactionChips += `<span class="reaction-pill">${emoji} ${counts[emoji]}</span>`;
+            // Content
+            let contentHtml = '';
+            if (note.audioData) {
+                contentHtml += `<audio controls src="${note.audioData}" class="audio-player"></audio>`;
             }
-        });
+            if (note.text) {
+                contentHtml += `<div>${note.text}</div>`;
+            }
 
-        bubble.innerHTML = `
-            <div class="message-sender">
-                <span>${note.sender} ➝ ${note.receiver}</span>
-            </div>
-            <div class="message-text">${contentHtml}</div>
-            <div class="message-meta">
-                <span class="timestamp">${note.formattedTime || 'Now'}</span>
-                ${ticks}
-            </div>
-            
-            <!-- Reactions UI -->
-            <div class="reactions-bar">
-                <div class="reaction-tally">
-                    ${reactionChips}
+            // Reactions Logic
+            let reactionChips = '';
+            const counts = note.reactionCounts || {};
+
+            // Migration
+            if ((note.likes > 0) && (!counts['❤️'])) {
+                counts['❤️'] = note.likes;
+            }
+
+            Object.keys(counts).forEach(emoji => {
+                if (counts[emoji] > 0) {
+                    reactionChips += `<span class="reaction-pill">${emoji} ${counts[emoji]}</span>`;
+                }
+            });
+
+            bubble.innerHTML = `
+                <div class="message-sender">
+                    <span>${note.sender} ➝ ${note.receiver}</span>
+                </div>
+                <div class="message-text">${contentHtml}</div>
+                <div class="message-meta">
+                    <span class="timestamp">${note.formattedTime || 'Now'}</span>
+                    ${ticks}
                 </div>
                 
-                <div class="reaction-wrapper">
-                    <button class="reaction-trigger" id="react-trigger-${note.id}">
-                        <i class="far fa-smile"></i>
-                    </button>
-                    <!-- Picker -->
-                    <div id="picker-${note.id}" class="reaction-picker hidden">
-                        <div class="reaction-emojis">
-                            <button class="emoji-btn" data-id="${note.id}" data-emoji="❤️">❤️</button>
-                            <button class="emoji-btn" data-id="${note.id}" data-emoji="👍">👍</button>
-                            <button class="emoji-btn" data-id="${note.id}" data-emoji="🤩">🤩</button>
-                            <button class="emoji-btn" data-id="${note.id}" data-emoji="😂">😂</button>
-                            <button class="emoji-btn" data-id="${note.id}" data-emoji="🙏">🙏</button>
+                <!-- Reactions UI -->
+                <div class="reactions-bar">
+                    <div class="reaction-tally">
+                        ${reactionChips}
+                    </div>
+                    
+                    <div class="reaction-wrapper">
+                        <button class="reaction-trigger" id="react-trigger-${note.id}">
+                            <i class="far fa-smile"></i>
+                        </button>
+                        <!-- Picker -->
+                        <div id="picker-${note.id}" class="reaction-picker hidden">
+                            <div class="reaction-emojis">
+                                <button class="emoji-btn" data-id="${note.id}" data-emoji="❤️">❤️</button>
+                                <button class="emoji-btn" data-id="${note.id}" data-emoji="👍">👍</button>
+                                <button class="emoji-btn" data-id="${note.id}" data-emoji="🤩">🤩</button>
+                                <button class="emoji-btn" data-id="${note.id}" data-emoji="😂">😂</button>
+                                <button class="emoji-btn" data-id="${note.id}" data-emoji="🙏">🙏</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+    
+                <!-- Admin Controls -->
+                ${isAdmin ? `
+                <div class="admin-controls" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; display:flex; gap:5px;">
+                    ${note.status === 'pending' ?
+                        `<button class="approve-btn" style="background:#d9fdd3;border:1px solid green;">✅</button>`
+                        : ''}
+                    <button class="reject-btn" style="background:#fdd3d3;border:1px solid red;">❌ حذف</button>
+                    <button class="pin-btn" style="background:${note.isPinned ? '#ffd700' : '#eee'}; border:1px solid #ccc;">
+                        ${note.isPinned ? 'Unpin' : '📌 Pin'}
+                    </button>
+                </div>` : ''}
+            `;
 
-            <!-- Admin Controls -->
-            ${isAdmin ? `
-            <div class="admin-controls" style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; display:flex; gap:5px;">
-                ${note.status === 'pending' ?
-                    `<button class="approve-btn" style="background:#d9fdd3;border:1px solid green;">✅</button>`
-                    : ''}
-                <button class="reject-btn" style="background:#fdd3d3;border:1px solid red;">❌ حذف</button>
-                <button class="pin-btn" style="background:${note.isPinned ? '#ffd700' : '#eee'}; border:1px solid #ccc;">
-                    ${note.isPinned ? 'Unpin' : '📌 Pin'}
-                </button>
-            </div>` : ''}
-        `;
+            // Bind Events (Module safety)
+            const trigger = bubble.querySelector(`#react-trigger-${note.id}`);
+            if (trigger) trigger.onclick = () => togglePicker(note.id);
 
-        // Bind Events (Module safety)
-        const trigger = bubble.querySelector(`#react-trigger-${note.id}`);
-        if (trigger) trigger.onclick = () => togglePicker(note.id);
+            // Picker buttons
+            const emojiBtns = bubble.querySelectorAll('.emoji-btn');
+            emojiBtns.forEach(btn => {
+                btn.onclick = () => addReaction(btn.dataset.id, btn.dataset.emoji);
+            });
 
-        // Picker buttons
-        const emojiBtns = bubble.querySelectorAll('.emoji-btn');
-        emojiBtns.forEach(btn => {
-            btn.onclick = () => addReaction(btn.dataset.id, btn.dataset.emoji);
+            if (isAdmin) {
+                const approveBtn = bubble.querySelector('.approve-btn');
+                if (approveBtn) approveBtn.onclick = () => approveMessage(note.id);
+
+                const rejectBtn = bubble.querySelector('.reject-btn');
+                if (rejectBtn) rejectBtn.onclick = () => rejectMessage(note.id);
+
+                const pinBtn = bubble.querySelector('.pin-btn');
+                if (pinBtn) pinBtn.onclick = () => togglePin(note.id, note.isPinned);
+            }
+
+            listContainer.appendChild(bubble);
         });
-
-        if (isAdmin) {
-            const approveBtn = bubble.querySelector('.approve-btn');
-            if (approveBtn) approveBtn.onclick = () => approveMessage(note.id);
-
-            const rejectBtn = bubble.querySelector('.reject-btn');
-            if (rejectBtn) rejectBtn.onclick = () => rejectMessage(note.id);
-
-            const pinBtn = bubble.querySelector('.pin-btn');
-            if (pinBtn) pinBtn.onclick = () => togglePin(note.id, note.isPinned);
-        }
-
-        chatArea.appendChild(bubble);
     });
 
-    if (isAdmin) {
-        messageCountSpan.innerText = `${notes.filter(n => n.status === 'pending').length} Pending`;
-    } else {
-        messageCountSpan.innerText = "Online";
-    }
+    // End Grouped Rendering
 }
 
 function scrollToMessage(id) {

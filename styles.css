@@ -448,3 +448,58 @@ textarea {
     border: 1px solid #fff;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
 }
+
+/* Weekly Grouping */
+.week-group {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.week-header {
+    background-color: #f0f2f5;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-weight: bold;
+    color: #54656f;
+    margin-bottom: 10px;
+    cursor: pointer;
+    list-style: none;
+    /* remove details arrow standard */
+    display: flex;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+}
+
+/* Custom arrow for details */
+details>summary {
+    list-style: none;
+}
+
+details>summary::-webkit-details-marker {
+    display: none;
+}
+
+details>summary::after {
+    content: '🔽';
+    margin-right: auto;
+    font-size: 12px;
+}
+
+details[open]>summary::after {
+    content: '🔼';
+}
+
+.active-header {
+    background-color: #d9fdd3;
+    /* WhatsApp Light Green */
+    color: #008069;
+    border: 1px solid #c8e6c9;
+    text-align: center;
+    justify-content: center;
+}
+
+.week-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
