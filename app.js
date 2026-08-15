@@ -424,10 +424,28 @@ adminToggle.addEventListener('click', toggleAdmin);
 // Global Exposure for HTML onclicks
 // Note: With Modules, functions aren't global by default.
 // We effectively bound them above or attached to window where necessary.
-// --- Global UI Helpers (for HTML onclicks) ---
+// --- Unified School Student Session Handler ---
+const urlParams = new URLSearchParams(window.location.search);
+const uName = urlParams.get('student_name');
+const uClass = urlParams.get('student_class');
+
+if (uName) {
+    const fullProfile = uClass ? `${uName} (${uClass})` : uName;
+    localStorage.setItem('school_unified_student_name', uName);
+    if (uClass) localStorage.setItem('school_unified_student_class', uClass);
+    localStorage.setItem('emtnan_unified_sender', fullProfile);
+}
 
 window.openCompose = function () {
     document.getElementById('compose-modal').style.display = 'flex';
+    const senderInput = document.getElementById('sender');
+    if (senderInput && !senderInput.value) {
+        const savedSender = localStorage.getItem('emtnan_unified_sender') || localStorage.getItem('school_unified_student_name');
+        const savedClass = localStorage.getItem('school_unified_student_class');
+        if (savedSender) {
+            senderInput.value = savedClass ? `${savedSender} (${savedClass})` : savedSender;
+        }
+    }
 }
 
 window.closeCompose = function () {
